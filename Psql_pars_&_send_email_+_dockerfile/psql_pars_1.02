@@ -1,0 +1,39 @@
+#!/bin/bash
+
+ERRORCOUNT=0
+
+
+if [ -n "$1" ]
+then
+  count=1
+  for srv in "$@"
+  do
+             psql -h $param -U user -W pwd set -query "select * from public.cash_cash where status = 'active'" > ${srv}_parsing.json |
+             i=$(cat ${srv}_parsing.json | grep -i "notSendedFDCount\":" | sed s/[^0-9]//g)
+             if [ "$i" -gt "$ERRORCOUNT" ]
+             then
+                        
+                         cvs=$(cat ${srv}_parsing.json | jq '.fnInfo | ["Номер кассы","Дата первого неотправленного документа","Количество неотправленных документов"], [.firstNotSendedFDDate, .notSendedFDCount] | [@csv]' | sed 's,],,g;s,",,g;s,\[,,g;s,\\,,g;s/^[ \t]*//;/^\s*$/d')
+                         #${srv}_report_()
+                         #${srv}_report_$(date +%H:%M:%S %d/%m/%Y).cvs
+                         cat > mail.txt << EOF
+                            To: example@example.ru
+                            From: example@example.ru
+                            Subject: Mail with error from "${srv}"
+                            ${cvs}
+                            EOF
+                         ssmtp example@example.ru < mail.txt
+            
+             echo "-------- Mail with error sended"
+             else
+             echo "-------- No error found"
+             fi
+  count=$(( $count + 1 ))
+  done
+  
+  rm -rf *_parsing* *_report_*
+
+else
+echo "-------- ERROR no parameters found."
+fi
+
