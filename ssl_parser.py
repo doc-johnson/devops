@@ -4,6 +4,7 @@ import socket
 import json
 import datefinder
 import requests
+import sys
 
 def ssl_parsing(host):
  try:
@@ -19,12 +20,12 @@ def ssl_parsing(host):
              cert_exp = (m - datetime.datetime.now()).days
              if cert_exp < alarm_days:
                  print("ALARM","!!!", cert_exp, "!!!", hostname)
-                 array_exp.append([hostname, cert_exp])
-             # else:
-                 # print("OK","(", cert_exp,")", hostname)
- except:
-     print("ALARM [SSL: CERTIFICATE_VERIFY_FAILED]", hostname)
-     array_err.append(hostname)
+                 array_exp.append(str(hostname) + ": " + str(cert_exp))
+             else:
+                 print("OK","(", cert_exp,")", hostname)
+ except Exception:
+     print("ALARM " + hostname + str(sys.exc_info()[1]))
+     array_err.append(str(hostname) + ": " + str(sys.exc_info()[1]))
 
 def check_array_exp(exp):
  if len(exp) > 0:
@@ -40,7 +41,7 @@ def check_array_err(err):
 
 def get_consul_sites():
     url = 'http://consul.monitoring/urls/list.txt?raw'
-    headers = {'Consul-Token': '0'}
+    headers = {'Token': '0'}
     array_sites = requests.get(url, headers=headers).text
     spl = array_sites.splitlines()
     return spl
@@ -50,7 +51,7 @@ def send_telegram_message():
     token = "0"
     url = f"https://api.telegram.org/bot{token}/{method}"
     send_text = "SSL_EXPIRED_VERIFY:\n{}\n\n----------------------" \
-                "\n\nSSL_ERROR_VERIFY:\n{}".format(check_array_exp(array_exp), check_array_err(array_err))
+                "\n\nSSL_ERROR_VERIFY:\n{}".format(check_array_exp('\n'.join(array_exp)), check_array_err('\n'.join(array_err)))
     data = {"chat_id": -0, "text": send_text}
     requests.post(url, data=data)
 
